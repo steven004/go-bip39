@@ -66,6 +66,9 @@ var (
 
 	// ErrChecksumIncorrect is returned when entropy has the incorrect checksum.
 	ErrChecksumIncorrect = errors.New("Checksum incorrect")
+
+	// ErrInvalidLanguage is returned when setting the WordList launguage which is not supported
+	ErrInvalidLanguage = errors.New("Invalid Language setting for Mnemonic")
 )
 
 func init() {
@@ -81,6 +84,33 @@ func SetWordList(list []string) {
 	for i, v := range wordList {
 		wordMap[v] = i
 	}
+}
+
+// SetMnemonicLanguage set the wordlist language
+func SetMnemonicLanguage(lang string) error {
+	switch strings.ToLower(lang) {
+	case "chinesesimplified":
+		SetWordList(wordlists.ChineseSimplified)
+	case "chinesetraditional":
+		SetWordList(wordlists.ChineseTraditional)
+	case "czech":
+		SetWordList(wordlists.Czech)
+	case "english":
+		SetWordList(wordlists.English)
+	case "french":
+		SetWordList(wordlists.French)
+	case "italian":
+		SetWordList(wordlists.Italian)
+	case "japanese":
+		SetWordList(wordlists.Japanese)
+	case "korean":
+		SetWordList(wordlists.Korean)
+	case "spanish":
+		SetWordList(wordlists.Spanish)
+	default:
+		return ErrInvalidLanguage
+	}
+	return nil
 }
 
 // GetWordList gets the list of words to use for mnemonics.
@@ -160,6 +190,59 @@ func EntropyFromMnemonic(mnemonic string) ([]byte, error) {
 	if checksum.Cmp(entropyChecksum) != 0 {
 		return nil, ErrChecksumIncorrect
 	}
+
+	return entropy, nil
+}
+
+// FixMnemonic takes a mnemonic with possible incorrect last word inputed by the user,
+// Recompute the checksum and
+// returns the corrected mnemonic right checksum, only the last word might change.
+func FixMnemonic(mnemonic string) (string, error) {
+	entropy, isValid := getEntropyNoChecksum(mnemonic)
+
+	if isValid != nil {
+		return mnemonic, ErrInvalidMnemonic
+	}
+
+	return NewMnemonic(entropy)
+}
+
+// This function is to just get Entropy from a mnemonic which might have a wrong checksum
+func getEntropyNoChecksum(mnemonic string) ([]byte, error) {
+	mnemonicSlice, isValid := splitMnemonicWords(mnemonic)
+	if !isValid {
+		return nil, ErrInvalidMnemonic
+	}
+
+	// Decode the words into a big.Int.
+	var (
+		wordBytes [2]byte
+		b         = big.NewInt(0)
+	)
+
+	for _, v := range mnemonicSlice {
+		index, found := wordMap[v]
+		if !found {
+			return nil, fmt.Errorf("word `%v` not found in reverse map", v)
+		}
+
+		binary.BigEndian.PutUint16(wordBytes[:], uint16(index))
+		b.Mul(b, shift11BitsMask)
+		b.Or(b, big.NewInt(0).SetBytes(wordBytes[:]))
+	}
+
+	// Build and add the checksum to the big.Int.
+	checksum := big.NewInt(0)
+	checksumMask := wordLengthChecksumMasksMapping[len(mnemonicSlice)]
+	checksum = checksum.And(b, checksumMask)
+
+	b.Div(b, big.NewInt(0).Add(checksumMask, bigOne))
+
+	// The entropy is the underlying bytes of the big.Int. Any upper bytes of
+	// all 0's are not returned so we pad the beginning of the slice with empty
+	// bytes if necessary.
+	entropy := b.Bytes()
+	entropy = padByteSlice(entropy, len(mnemonicSlice)/3*4)
 
 	return entropy, nil
 }
