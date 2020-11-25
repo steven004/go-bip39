@@ -72,7 +72,7 @@ var (
 )
 
 func init() {
-	SetWordList(wordlists.English)
+	SetWordList(wordlists.ChineseSimplified)
 }
 
 // SetWordList sets the list of words to use for mnemonics. Currently the list
