@@ -1,4 +1,4 @@
-module github.com/tyler-smith/go-bip39
+module github.com/steven004/go-bip39
 
 go 1.11
 
