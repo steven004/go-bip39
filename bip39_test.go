@@ -242,6 +242,14 @@ func TestEntropyFromMnemonicInvalidMnemonicSize(t *testing.T) {
 	}
 }
 
+func TestCorrectMnemonic(t *testing.T) {
+	mnemonic := "一 二 三 四 五 六 其 吧 就 时 啊 不"
+
+	newMnemonic, err := FixMnemonic(mnemonic)
+	assert.Nil(t, err)
+	t.Log(newMnemonic)
+}
+
 func testEntropyFromMnemonic(t *testing.T, bitSize int) {
 	for i := 0; i < 512; i++ {
 		expectedEntropy, err := NewEntropy(bitSize)
