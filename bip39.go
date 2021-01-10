@@ -47,6 +47,9 @@ var (
 	// wordList is the set of words to use.
 	wordList []string
 
+	// englishWorkList is for Seed generation since seed is derived from english mnemonic string
+	englishWordList = wordlists.English
+
 	// wordMap is a reverse lookup map for wordList.
 	wordMap map[string]int
 )
@@ -294,6 +297,53 @@ func NewMnemonic(entropy []byte) (string, error) {
 	return strings.Join(words, " "), nil
 }
 
+// NewEnglishMnemonic will return an English string consisting of the mnemonic words for
+// the given entropy.
+// If the provide entropy is invalid, an error will be returned.
+func NewEnglishMnemonic(entropy []byte) (string, error) {
+	// Compute some lengths for convenience.
+	entropyBitLength := len(entropy) * 8
+	checksumBitLength := entropyBitLength / 32
+	sentenceLength := (entropyBitLength + checksumBitLength) / 11
+
+	// Validate that the requested size is supported.
+	err := validateEntropyBitSize(entropyBitLength)
+	if err != nil {
+		return "", err
+	}
+
+	// Add checksum to entropy.
+	entropy = addChecksum(entropy)
+
+	// Break entropy up into sentenceLength chunks of 11 bits.
+	// For each word AND mask the rightmost 11 bits and find the word at that index.
+	// Then bitshift entropy 11 bits right and repeat.
+	// Add to the last empty slot so we can work with LSBs instead of MSB.
+
+	// Entropy as an int so we can bitmask without worrying about bytes slices.
+	entropyInt := new(big.Int).SetBytes(entropy)
+
+	// Slice to hold words in.
+	words := make([]string, sentenceLength)
+
+	// Throw away big.Int for AND masking.
+	word := big.NewInt(0)
+
+	for i := sentenceLength - 1; i >= 0; i-- {
+		// Get 11 right most bits and bitshift 11 to the right for next time.
+		word.And(entropyInt, last11BitsMask)
+		entropyInt.Div(entropyInt, shift11BitsMask)
+
+		// Get the bytes representing the 11 bits as a 2 byte slice.
+		wordBytes := padByteSlice(word.Bytes(), 2)
+
+		// Convert bytes to an index and add that word to the list.
+		words[i] = englishWordList[binary.BigEndian.Uint16(wordBytes)]
+	}
+
+	return strings.Join(words, " "), nil
+}
+
 // MnemonicToByteArray takes a mnemonic string and turns it into a byte array
 // suitable for creating another mnemonic.
 // An error is returned if the mnemonic is invalid.
@@ -334,7 +384,18 @@ func NewSeedWithErrorChecking(mnemonic string, password string) ([]byte, error) 
 // NewSeed creates a hashed seed output given a provided string and password.
 // No checking is performed to validate that the string provided is a valid mnemonic.
 func NewSeed(mnemonic string, password string) []byte {
-	return pbkdf2.Key([]byte(mnemonic), []byte("mnemonic"+password), 2048, 64, sha512.New)
+	entropy, err := EntropyFromMnemonic(mnemonic)
+	if err != nil {
+		return nil
+	}
+
+	// english mnemonic is required for pbkdf2 seed generation
+	englishMnemonic, err := NewEnglishMnemonic(entropy)
+	if err != nil {
+		return nil
+	}
+
+	return pbkdf2.Key([]byte(englishMnemonic), []byte("mnemonic"+password), 2048, 64, sha512.New)
 }
 
 // IsMnemonicValid attempts to verify that the provided mnemonic is valid.
