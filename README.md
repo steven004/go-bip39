@@ -9,6 +9,9 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/tyler-smith/go-bip39)](https://goreportcard.com/report/github.com/tyler-smith/go-bip39)
 [![Coverage Status](https://coveralls.io/repos/github/tyler-smith/go-bip39/badge.svg?branch=master)](https://coveralls.io/github/tyler-smith/go-bip39?branch=master)
 
+
+**Customized for SimplifiedChinese Mnemonic support**
+
 ## Example
 
 ```go
