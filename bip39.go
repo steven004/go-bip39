@@ -87,6 +87,10 @@ func SetWordList(list []string) {
 	for i, v := range wordList {
 		wordMap[v] = i
 	}
+
+	for i, v := range englishWordList {
+		wordMap[v] = i
+	}
 }
 
 // SetMnemonicLanguage set the wordlist language
@@ -297,10 +301,43 @@ func NewMnemonic(entropy []byte) (string, error) {
 	return strings.Join(words, " "), nil
 }
 
-// NewEnglishMnemonic will return an English string consisting of the mnemonic words for
+// MnemonicTrans2English will translate a default-language mnemonic to English
+func MnemonicTrans2English(mnemonic string) (string, error) {
+	entropy, err := EntropyFromMnemonic(mnemonic)
+	if err != nil {
+		return "", err
+	}
+
+	// english mnemonic is required for pbkdf2 seed generation
+	englishMnemonic, err := newEnglishMnemonic(entropy)
+	if err != nil {
+		return "", err
+	}
+
+	return englishMnemonic, nil
+}
+
+// MnemonicTransFromEnglish will translate an English mnemonic
+//   to the default-language mnemonic string
+func MnemonicTransFromEnglish(engMnemonic string) (string, error) {
+	entropy, err := EntropyFromMnemonic(engMnemonic)
+	if err != nil {
+		return "", err
+	}
+
+	// english mnemonic is required for pbkdf2 seed generation
+	mnemonic, err := NewMnemonic(entropy)
+	if err != nil {
+		return "", err
+	}
+
+	return mnemonic, nil
+}
+
+// newEnglishMnemonic will return an English string consisting of the mnemonic words for
 // the given entropy.
 // If the provide entropy is invalid, an error will be returned.
-func NewEnglishMnemonic(entropy []byte) (string, error) {
+func newEnglishMnemonic(entropy []byte) (string, error) {
 	// Compute some lengths for convenience.
 	entropyBitLength := len(entropy) * 8
 	checksumBitLength := entropyBitLength / 32
@@ -384,13 +421,8 @@ func NewSeedWithErrorChecking(mnemonic string, password string) ([]byte, error) 
 // NewSeed creates a hashed seed output given a provided string and password.
 // No checking is performed to validate that the string provided is a valid mnemonic.
 func NewSeed(mnemonic string, password string) []byte {
-	entropy, err := EntropyFromMnemonic(mnemonic)
-	if err != nil {
-		return nil
-	}
-
 	// english mnemonic is required for pbkdf2 seed generation
-	englishMnemonic, err := NewEnglishMnemonic(entropy)
+	englishMnemonic, err := MnemonicTrans2English(mnemonic)
 	if err != nil {
 		return nil
 	}

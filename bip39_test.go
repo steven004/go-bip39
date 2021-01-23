@@ -138,6 +138,24 @@ func TestMnemonicToByteArrayForDifferentArrayLengths(t *testing.T) {
 		}
 	}
 }
+
+func TestMnemonicTranslation(t *testing.T) {
+	cMnemonic := "而 怕 夏 客 盖 古 松 面 解 谓 鲜 唯 " +
+		"障 烯 共 吴 永 丁 赤 副 醒 分 猛 埔"
+	eMnemonic := "all hour make first leader extend " +
+		"hole alien behind guard gospel lava path output census " +
+		"museum junior mass reopen famous sing advance salt reform"
+
+	englishMnemonic, err := MnemonicTrans2English(cMnemonic)
+
+	assert.Nil(t, err)
+	assert.EqualString(t, englishMnemonic, eMnemonic)
+
+	mnemonic, err := MnemonicTransFromEnglish(eMnemonic)
+	assert.Nil(t, err)
+	assert.EqualString(t, mnemonic, cMnemonic)
+}
+
 func TestPadByteSlice(t *testing.T) {
 	assertEqualByteSlices(t, []byte{0}, padByteSlice([]byte{}, 1))
 	assertEqualByteSlices(t, []byte{0, 1}, padByteSlice([]byte{1}, 2))
